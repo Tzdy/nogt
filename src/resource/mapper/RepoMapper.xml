@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="RepoMapper">  
+  <select id="getRepoPageList">
+    select a.*, b.username from t_repo a
+    left join t_user b on a.user_id = b.id
+    <where>
+      AND b.id = #{userId}
+      <if test="type != null and type != ''">
+        AND a.type = #{type}
+      </if>
+    </where>
+  </select>
+
+  <select id="getRecommendRepoPageList">
+    select a.*, b.username from t_repo a
+    left join t_user b on a.user_id = b.id
+    <where>
+      <if test="username != null and username != ''">
+        AND b.username = #{username}
+      </if>
+      <if test="repoName != null and repoName != ''">
+        AND a.name like concat(#{repoName}, '%')
+      </if>
+      AND a.type = 0
+    </where>
+    order by a.created_at
+  </select>
+
+  <select id="getLatestCommit">
+  select
+    c.*
+  from
+    t_repo repo
+  inner join t_user ur on repo.user_id = ur.id	
+  inner join t_branch a on
+    repo.id = a.repo_id
+  inner join t_repo_branch_lnk_repo_commit b on
+    a.id = b.repo_branch_id
+  inner join t_repo_commit c on
+    b.repo_commit_id = c.id
+  inner join t_repo_blob d on
+    d.commit_id = c.id
+  where
+    ur.username = #{username}
+    and repo.name = #{repoName}
+    and a.name = #{branch}
+    and d."path" = #{path}
+  order by 	
+    c.commit_time desc
+  limit 1
+  </select>
+</mapper>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="RepoCommitMapper">  
+
+  <select id="getRepoCommitPageList">
+    select
+	    a.id,
+	    a.commit_time,
+	    a.commit_hash,
+	    a.username,
+	    a."comment",
+	    coalesce(cast(d.id as bool), false) as is_user
+    from
+	    t_repo_commit a
+    left join t_repo_branch_lnk_repo_commit b on
+	    a.id = b.repo_commit_id
+    left join t_branch c on
+	    b.repo_branch_id = c.id
+    left join t_user d on
+	    a.username = d.username 
+    left join t_repo e on a.repo_id = e.id    
+    left join t_user f on e.user_id = f.id
+    <where>
+        AND f.username = #{username}
+        AND e.name = #{repoName}
+        AND c.name = #{branch}
+        <if test="commitUsername != null and commitUsername != ''">
+            a.username = #{commitUsername}
+        </if>
+        <if test="commitHash != null and commitHash != ''">
+            a.commit_hash like concat(#{commitHash}, '%')
+        </if>
+    </where>
+    order by a.commit_time desc
+  </select>
+
+
+  <select id="getCommitByBranchAndRepo">
+  select
+    c.commit_hash
+  from
+    t_branch a
+  left join t_repo_branch_lnk_repo_commit b on
+    a.id = b.repo_branch_id
+  left join t_repo_commit c on
+    b.repo_commit_id = c.id
+  where 
+    a.id = #{branchId}
+  and a.repo_id = #{repoId}
+
+
+  </select>
+</mapper>
