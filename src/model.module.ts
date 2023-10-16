@@ -3,18 +3,20 @@ import { Sequelize } from 'sequelize';
 import { globSync } from 'glob';
 import { join } from 'path';
 import { initModels } from './entity/init-models';
-export const sequelize = new Sequelize({
-  dialect: 'postgres',
-  host: 'localhost',
-  port: 5432,
-  username: '',
-  password: '',
-  database: 'postgres',
-});
+console.log(process.env.PG_DATABASE);
+export let sequelize;
 export const databaseProviders = [
   {
     provide: Sequelize.name,
     useFactory: async () => {
+      sequelize = new Sequelize({
+        dialect: 'postgres',
+        host: process.env.PG_HOST,
+        port: Number(process.env.PG_PORT),
+        username: process.env.PG_USER,
+        password: process.env.PG_PASS,
+        database: process.env.PG_DATABASE,
+      });
       initModels(sequelize);
       // await sequelize.sync();
       return sequelize;

@@ -6,10 +6,10 @@ import { join } from 'path';
 
 @Module({
   imports: [
-    ModelModule,
     ConfigModule.forRoot({
       envFilePath: '.env',
     }),
+    ModelModule,
   ],
   controllers: [
     ...globSync(join(__dirname, './controller/**/*.controller.js')).map(
