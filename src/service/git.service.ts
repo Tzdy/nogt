@@ -131,10 +131,7 @@ export class GitService {
       },
     });
     repo.updatedAt = new Date();
-    const gitUtil = new GitUtil(
-      join('/Users/mac/Documents/web/server/gogs/nest/repo', username),
-      repoName,
-    );
+    const gitUtil = new GitUtil(join(process.env.GIT_ROOT, username), repoName);
     const repoCommitHashSet = new Set(
       (
         await this.repoCommitMapper.findAll({

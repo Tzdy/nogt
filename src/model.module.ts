@@ -18,7 +18,9 @@ export const databaseProviders = [
         database: process.env.PG_DATABASE,
       });
       initModels(sequelize);
-      // await sequelize.sync();
+      await sequelize.sync({
+        alter: true,
+      });
       return sequelize;
     },
   },

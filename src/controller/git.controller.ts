@@ -7,7 +7,7 @@ export class GitController {
   git: Git;
 
   constructor(private readonly gitService: GitService) {
-    const git = new Git('/Users/mac/Documents/web/server/gogs/nest/repo', {
+    const git = new Git(process.env.GIT_ROOT, {
       autoCreate: false,
       authenticate: ({ type, repo, user, ...a }, next) => {
         if (type === 'push' || type === 'tag') {

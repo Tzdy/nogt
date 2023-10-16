@@ -73,16 +73,12 @@ export class RepoService {
         transaction,
       });
       try {
-        await stat(
-          join('/Users/mac/Documents/web/server/gogs/nest/repo', user.username),
-        );
+        await stat(join(process.env.GIT_ROOT, user.username));
       } catch (err) {
-        await mkdir(
-          join('/Users/mac/Documents/web/server/gogs/nest/repo', user.username),
-        );
+        await mkdir(join(process.env.GIT_ROOT, user.username));
       }
       const gitUtil = new GitUtil(
-        join('/Users/mac/Documents/web/server/gogs/nest/repo', user.username),
+        join(process.env.GIT_ROOT, user.username),
         dto.name,
       );
       await gitUtil.createDirAndInitBare();
@@ -104,16 +100,8 @@ export class RepoService {
     let isUpdate = false;
     if (vo.repoName !== undefined) {
       await rename(
-        join(
-          '/Users/mac/Documents/web/server/gogs/nest/repo',
-          user.username,
-          `${repo.name}.git`,
-        ),
-        join(
-          '/Users/mac/Documents/web/server/gogs/nest/repo',
-          user.username,
-          `${vo.repoName}.git`,
-        ),
+        join(process.env.GIT_ROOT, user.username, `${repo.name}.git`),
+        join(process.env.GIT_ROOT, user.username, `${vo.repoName}.git`),
       );
       repo.name = vo.repoName;
       isUpdate = true;
@@ -147,13 +135,7 @@ export class RepoService {
     if (repo.userId !== user.id) {
       throw new HttpOKException('不能修改其他用户仓库信息');
     }
-    await rm(
-      join(
-        '/Users/mac/Documents/web/server/gogs/nest/repo',
-        user.username,
-        `${repo.name}.git`,
-      ),
-    );
+    await rm(join(process.env.GIT_ROOT, user.username, `${repo.name}.git`));
     await repo.destroy();
   }
 
