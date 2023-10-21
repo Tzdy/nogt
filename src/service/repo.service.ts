@@ -19,10 +19,7 @@ import { BranchMapper } from 'src/mapper/branch.mapper';
 import { GetRepoCommitPageListVO } from 'src/models/vo/repo/getRepoCommitPageList.vo';
 import { BaseService } from './base.service';
 import * as _ from 'lodash';
-import { RepoCommitMapper } from 'src/mapper/repo_commit.mapper';
 import { GetLsTreeVO } from 'src/models/vo/repo/get_ls_tree.vo';
-import { RepoBlobMapper } from 'src/mapper/repo_blob.mapper';
-import { GetTreeCommitListVO } from 'src/models/vo/repo/get_tree_commit_list.vo';
 import { GetLsTreeDTO } from 'src/models/dto/repo/get_ls_tree.dto';
 import { GetCatFileVO } from 'src/models/vo/repo/get_cat_file.vo';
 import { GetCatFileDTO } from 'src/models/dto/repo/get_cat_file.dto';
@@ -31,7 +28,6 @@ import { GetLatestCommitByPathDTO } from 'src/models/dto/repo/get_latest_commit_
 import { RefType } from 'src/enum/ref_type.enum';
 import { GetRepoOneDTO } from 'src/models/dto/repo/get_repo_one.dto';
 import { RepoTagMapper } from 'src/mapper/repo_tag.mapper';
-import { Op } from 'sequelize';
 
 @Injectable()
 export class RepoService {
@@ -41,10 +37,6 @@ export class RepoService {
     @Inject(UserMapper.name) private readonly userMapper: typeof UserMapper,
     @Inject(BranchMapper.name)
     private readonly branchMapper: typeof BranchMapper,
-    @Inject(RepoCommitMapper.name)
-    private readonly repoCommitMapper: typeof RepoCommitMapper,
-    @Inject(RepoBlobMapper.name)
-    private readonly repoBlobMapper: typeof RepoBlobMapper,
     @Inject(RepoTagMapper.name)
     private readonly repoTagMapper: typeof RepoTagMapper,
     @Inject(Sequelize.name) private sequelize: Sequelize,
@@ -225,20 +217,11 @@ export class RepoService {
       if (!branch) {
         throw new HttpOKException('commit hash 不能为空');
       }
-      const commit = await this.repoCommitMapper.findOne({
-        where: {
-          repoId: repo.id,
-          commitHash: branch,
-        },
-      });
-      const count = await this.repoCommitMapper.count({
-        where: {
-          repoId: repo.id,
-          commitTime: {
-            [Op.lte]: commit.commitTime,
-          },
-        },
-      });
+      const gitUtil = new GitUtil(
+        join(process.env.GIT_ROOT, vo.username),
+        vo.repoName,
+      );
+      const count = await gitUtil.commitCount(branch);
       result.commitNum = count;
     }
 
@@ -255,9 +238,19 @@ export class RepoService {
       user,
     );
     vo.branch = vo.branch ? vo.branch : repo.defaultBranchName;
-    const pagePlugin: PagePlugin = PageUtil.pagePlugin(vo);
-    const result = await this.repoCommitMapper.getRepoCommitPageList(vo);
-    return new PageDTO(result, pagePlugin.total);
+    const gitUtil = new GitUtil(
+      join(process.env.GIT_ROOT, vo.username),
+      vo.repoName,
+    );
+    const result = await gitUtil.findCommit(
+      vo.branch,
+      vo.page,
+      vo.pageSize,
+      null,
+      vo.path,
+    );
+    const count = await gitUtil.commitCount(vo.branch, vo.path);
+    return new PageDTO(result, count);
   }
 
   public async getLsTree(vo: GetLsTreeVO, user?: UserDTO) {
@@ -281,41 +274,15 @@ export class RepoService {
     if (!branchDTO) {
       throw new HttpOKException('分支不存在');
     }
-    const treeList = await gitUtil.lsTree(branch, vo.path);
-    const getTreeCommitListVO: GetTreeCommitListVO = {
-      list: treeList.map((item) => ({
-        blobHash: item.hash,
-        path: item.path,
-      })),
-      repoId: repo.id,
-      branchId: branchDTO.id,
-    };
-    const treeCommitList = await this.repoBlobMapper.getTreeCommitList(
-      getTreeCommitListVO,
-    );
-    const treeCommitListMap = _.keyBy(treeCommitList, 'path');
-    const result: GetLsTreeDTO[] = [];
-    treeList.forEach((tree) => {
-      const item = treeCommitListMap[tree.path];
-      const dto = new GetLsTreeDTO();
-      dto.commitContent = item.comment;
-      dto.commitHash = item.commitHash;
-      dto.commitTime = item.commitTime;
-      dto.commitUser = item.username;
-      dto.hash = tree.hash;
-      dto.name = tree.name;
-      dto.path = tree.path;
-      dto.type = tree.type;
-      result.push(dto);
-    });
-    result.sort((a, b) => {
+    const treeList = await gitUtil.lsTree(branch, vo.path, true);
+    treeList.sort((a, b) => {
       if (b.type === 'blob' && a.type === 'tree') {
         return -1;
       } else {
         return a.name.localeCompare(b.name);
       }
     });
-    return result;
+    return treeList;
   }
 
   public async getCatFile(
@@ -351,32 +318,26 @@ export class RepoService {
     if (!vo.branch) {
       vo.branch = repo.defaultBranchName;
     }
-    let dto: GetLatestCommitByPathDTO = null;
     if (!vo.path) {
-      const gVO: GetRepoCommitPageListVO = {
-        ...vo,
-        page: 1,
-        pageSize: 1,
-      };
-      const commitList = await this.repoCommitMapper.getRepoCommitPageList(gVO);
-      dto = commitList[0];
-    } else if (vo.path && vo.branch) {
-      const commitList = await this.repoMapper.getLatestCommit({
-        username: vo.username,
-        repoName: vo.repoName,
-        branch: vo.branch,
-        path: vo.path,
-      });
-      const commitUser = await this.userMapper.findOne({
-        where: { username: commitList[0].username },
-      });
-      dto = {
-        isUser: !!commitUser,
-        ...commitList[0].dataValues,
-      };
-    } else {
-      throw new HttpOKException('参数不全');
+      vo.path = '.';
     }
+    const gitUtil = new GitUtil(
+      join(process.env.GIT_ROOT, vo.username),
+      vo.repoName,
+    );
+
+    const commit = await gitUtil.findCommitByPath(vo.branch, vo.path);
+    const commitUser = await this.userMapper.findOne({
+      where: { username: commit.username },
+    });
+    const dto: GetLatestCommitByPathDTO = {
+      comment: commit.comment,
+      commitHash: commit.commitHash,
+      commitTime: commit.time,
+      username: commit.username,
+      isUser: !!commitUser,
+    };
+
     return dto;
   }
 }

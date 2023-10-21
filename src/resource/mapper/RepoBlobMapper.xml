@@ -1,16 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="RepoBlobMapper"> 
-    <select id="getTreeCommitList">
-        select a."path", a.blob_hash ,b.commit_time,b.commit_hash,b.username,b."comment"  
-            from t_repo_blob a
-        left join t_repo_branch_lnk_repo_commit c on a.commit_id = c.repo_commit_id and c.repo_branch_id = #{branchId}
-        left join t_repo_commit b on c.repo_commit_id = b.id
-        where (a.blob_hash, a."path") in 
-        <foreach collection="list" open="(" close=")" separator="," item="item">
-            (#{item.blobHash}, #{item.path})
-        </foreach>
-        and b.repo_id = #{repoId}
-    </select>
-
 </mapper>

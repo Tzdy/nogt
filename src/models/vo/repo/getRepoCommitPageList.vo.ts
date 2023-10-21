@@ -12,6 +12,9 @@ export class GetRepoCommitPageListVO extends PartialType(PageVO) {
   branch?: string;
 
   @ApiProperty()
+  path?: string;
+
+  @ApiProperty()
   commitUsername?: string;
 
   @ApiProperty()

@@ -27,27 +27,4 @@
     order by a.created_at
   </select>
 
-  <select id="getLatestCommit">
-  select
-    c.*
-  from
-    t_repo repo
-  inner join t_user ur on repo.user_id = ur.id	
-  inner join t_branch a on
-    repo.id = a.repo_id
-  inner join t_repo_branch_lnk_repo_commit b on
-    a.id = b.repo_branch_id
-  inner join t_repo_commit c on
-    b.repo_commit_id = c.id
-  inner join t_repo_blob d on
-    d.commit_id = c.id
-  where
-    ur.username = #{username}
-    and repo.name = #{repoName}
-    and a.name = #{branch}
-    and d."path" = #{path}
-  order by 	
-    c.commit_time desc
-  limit 1
-  </select>
 </mapper>
